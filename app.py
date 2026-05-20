@@ -30,16 +30,19 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Curated finance-relevant Unsplash search terms that reliably return good images
-CATEGORY_KEYWORDS = {
-    "markets": ["stock market chart", "wall street trading", "stock exchange", "financial graph", "bull market", "nasdaq trading floor"],
-    "economy": ["federal reserve bank", "global economy", "inflation finance", "interest rates", "central bank", "gdp growth"],
-    "tech": ["artificial intelligence technology", "silicon valley tech", "semiconductor chip", "data center servers", "fintech startup", "cybersecurity"],
-    "general": ["business meeting boardroom", "corporate finance", "investment banking", "financial district", "wall street", "money currency"],
+# One search per category = 4 Unsplash calls total, ever
+CATEGORY_SEARCHES = {
+    "markets": "stock market trading floor",
+    "economy": "central bank federal reserve",
+    "tech": "technology silicon valley",
+    "general": "business finance corporate",
 }
 
 cache = {"articles": [], "last_updated": None}
-unsplash_cache = {}
+
+# This stores a pool of ~10 images per category, fetched ONCE at startup
+image_pool = {"markets": [], "economy": [], "tech": [], "general": []}
+image_pool_loaded = False
 
 def clean(text):
     return re.sub(r'<[^>]+>', '', text).strip()
@@ -84,27 +87,29 @@ def extract_image(entry):
                 return url
     return ''
 
-def get_unsplash_image(category):
-    if not UNSPLASH_KEY:
-        return ''
-    keywords = CATEGORY_KEYWORDS.get(category, CATEGORY_KEYWORDS["general"])
-    keyword = random.choice(keywords)
-    if keyword in unsplash_cache:
-        # Return a random one from cached results to add variety
-        return random.choice(unsplash_cache[keyword])
-    try:
-        query = urllib.parse.quote(keyword)
-        url = f"https://api.unsplash.com/search/photos?query={query}&per_page=10&orientation=landscape&client_id={UNSPLASH_KEY}"
-        req = urllib.request.Request(url)
-        response = urllib.request.urlopen(req, timeout=5)
-        data = json.loads(response.read())
-        results = data.get('results', [])
-        if results:
-            urls = [r['urls']['regular'] for r in results[:8]]
-            unsplash_cache[keyword] = urls
-            return random.choice(urls)
-    except Exception:
-        pass
+def load_image_pool():
+    """Fetch a pool of images per category — called ONCE at startup only."""
+    global image_pool_loaded
+    if not UNSPLASH_KEY or image_pool_loaded:
+        return
+    for category, query in CATEGORY_SEARCHES.items():
+        try:
+            q = urllib.parse.quote(query)
+            url = f"https://api.unsplash.com/search/photos?query={q}&per_page=10&orientation=landscape&client_id={UNSPLASH_KEY}"
+            req = urllib.request.Request(url)
+            response = urllib.request.urlopen(req, timeout=5)
+            data = json.loads(response.read())
+            results = data.get('results', [])
+            image_pool[category] = [r['urls']['regular'] for r in results]
+        except Exception:
+            image_pool[category] = []
+    image_pool_loaded = True
+
+def get_pooled_image(category):
+    """Pick a random image from the pre-fetched pool — no API call."""
+    pool = image_pool.get(category, [])
+    if pool:
+        return random.choice(pool)
     return ''
 
 def fetch_feed(feed):
@@ -140,6 +145,9 @@ def interleave(all_articles_by_source):
     return result
 
 def refresh_cache():
+    # Load image pool first (only runs once ever)
+    load_image_pool()
+
     by_source = []
     for feed in FEEDS:
         articles = fetch_feed(feed)
@@ -149,9 +157,10 @@ def refresh_cache():
     mixed = interleave(by_source)
     mixed.sort(key=lambda x: x["published_dt"], reverse=True)
 
+    # Fill missing images from pre-fetched pool only
     for article in mixed:
         if not article["image"]:
-            article["image"] = get_unsplash_image(article["category"])
+            article["image"] = get_pooled_image(article["category"])
 
     cache["articles"] = mixed
     cache["last_updated"] = datetime.now(timezone.utc)
