@@ -12,9 +12,10 @@ FEEDS = [
     {"source": "Reuters Business", "category": "general", "url": "https://feeds.reuters.com/reuters/businessNews"},
     {"source": "AP Business", "category": "general", "url": "https://feeds.apnews.com/rss/apf-business"},
     {"source": "NPR Business", "category": "general", "url": "https://feeds.npr.org/1006/rss.xml"},
-    {"source": "MarketWatch", "category": "markets", "url": "https://feeds.marketwatch.com/marketwatch/topstories/"},
+    {"source": "MarketWatch Markets", "category": "markets", "url": "https://feeds.marketwatch.com/marketwatch/marketpulse/"},
     {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
     {"source": "Nasdaq News", "category": "markets", "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets"},
+    {"source": "Investopedia", "category": "markets", "url": "https://www.investopedia.com/feedbuilder/feed/getfeed/?feedName=rss_headline"},
     {"source": "CNBC Economy", "category": "economy", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"},
     {"source": "The Economist", "category": "economy", "url": "https://www.economist.com/finance-and-economics/rss.xml"},
     {"source": "CNBC Tech", "category": "tech", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"},
@@ -96,7 +97,6 @@ def index():
     category = request.args.get("category", "all")
     date_filter = request.args.get("date", "")
 
-    # Refresh if cache is empty or older than 15 minutes
     if not cache["articles"] or (
         cache["last_updated"] and
         (datetime.now(timezone.utc) - cache["last_updated"]).seconds > 900
