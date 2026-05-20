@@ -5,21 +5,21 @@ import re
 import os
 from datetime import datetime, timezone
 import email.utils
+import random
 
 app = Flask(__name__)
 
 FEEDS = [
+    {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
+    {"source": "TechCrunch", "category": "tech", "url": "https://techcrunch.com/feed/"},
+    {"source": "CNBC Economy", "category": "economy", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"},
+    {"source": "CNBC Tech", "category": "tech", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"},
+    {"source": "CNBC Markets", "category": "markets", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069"},
     {"source": "Reuters Business", "category": "general", "url": "https://feeds.reuters.com/reuters/businessNews"},
     {"source": "AP Business", "category": "general", "url": "https://feeds.apnews.com/rss/apf-business"},
     {"source": "NPR Business", "category": "general", "url": "https://feeds.npr.org/1006/rss.xml"},
-    {"source": "MarketWatch Markets", "category": "markets", "url": "https://feeds.marketwatch.com/marketwatch/marketpulse/"},
-    {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
     {"source": "Nasdaq News", "category": "markets", "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets"},
-    {"source": "Investopedia", "category": "markets", "url": "https://www.investopedia.com/feedbuilder/feed/getfeed/?feedName=rss_headline"},
-    {"source": "CNBC Economy", "category": "economy", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"},
     {"source": "The Economist", "category": "economy", "url": "https://www.economist.com/finance-and-economics/rss.xml"},
-    {"source": "CNBC Tech", "category": "tech", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"},
-    {"source": "TechCrunch", "category": "tech", "url": "https://techcrunch.com/feed/"},
 ]
 
 HEADERS = {
@@ -45,20 +45,34 @@ def parse_date(entry):
     return datetime.min.replace(tzinfo=timezone.utc)
 
 def extract_image(entry):
+    # Try media_thumbnail first
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
-        return entry.media_thumbnail[0].get('url', '')
-    if hasattr(entry, 'media_content') and entry.media_content:
-        url = entry.media_content[0].get('url', '')
-        if url and any(url.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+        url = entry.media_thumbnail[0].get('url', '')
+        if url:
             return url
+    # Try media_content
+    if hasattr(entry, 'media_content') and entry.media_content:
+        for m in entry.media_content:
+            url = m.get('url', '')
+            if url and any(ext in url for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                return url
+    # Try enclosures
     if hasattr(entry, 'enclosures') and entry.enclosures:
         for enc in entry.enclosures:
             if 'image' in enc.get('type', ''):
                 return enc.get('href', '')
-    summary_html = entry.get('summary', '')
-    img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', summary_html)
-    if img_match:
-        return img_match.group(1)
+    # Try parsing img tag from content or summary
+    for field in ['content', 'summary']:
+        text = ''
+        if field == 'content' and hasattr(entry, 'content') and entry.content:
+            text = entry.content[0].get('value', '')
+        else:
+            text = entry.get('summary', '')
+        img_match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', text)
+        if img_match:
+            url = img_match.group(1)
+            if url.startswith('http'):
+                return url
     return ''
 
 def fetch_feed(feed):
@@ -84,12 +98,26 @@ def fetch_feed(feed):
     except Exception:
         return []
 
+def interleave(all_articles_by_source):
+    """Mix articles from different sources so no one source dominates."""
+    result = []
+    while any(all_articles_by_source):
+        for source_list in all_articles_by_source:
+            if source_list:
+                result.append(source_list.pop(0))
+    return result
+
 def refresh_cache():
-    articles = []
+    by_source = []
     for feed in FEEDS:
-        articles.extend(fetch_feed(feed))
-    articles.sort(key=lambda x: x["published_dt"], reverse=True)
-    cache["articles"] = articles
+        articles = fetch_feed(feed)
+        if articles:
+            by_source.append(articles)
+
+    # Interleave sources, then sort by date within each day
+    mixed = interleave(by_source)
+    mixed.sort(key=lambda x: x["published_dt"], reverse=True)
+    cache["articles"] = mixed
     cache["last_updated"] = datetime.now(timezone.utc)
 
 @app.route("/")
