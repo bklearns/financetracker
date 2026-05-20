@@ -7,6 +7,7 @@ import re
 import os
 from datetime import datetime, timezone
 import email.utils
+import random
 
 app = Flask(__name__)
 
@@ -29,7 +30,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Cache for articles and Unsplash images
 cache = {"articles": [], "last_updated": None}
 unsplash_cache = {}
 
@@ -76,36 +76,37 @@ def extract_image(entry):
                 return url
     return ''
 
+def extract_keyword(title):
+    stopwords = {'the','a','an','in','on','at','to','for','of','and','or','but',
+                 'is','are','was','were','be','been','being','have','has','had',
+                 'do','does','did','will','would','could','should','may','might',
+                 'this','that','these','those','it','its','as','by','from','with',
+                 'how','what','why','when','who','which','up','out','about','into',
+                 'just','more','than','over','after','says','said','according','new'}
+    words = re.findall(r'\b[a-zA-Z]{4,}\b', title)
+    keywords = [w for w in words if w.lower() not in stopwords]
+    return ' '.join(keywords[:3]) if keywords else 'finance business'
+
 def get_unsplash_image(keyword):
     if not UNSPLASH_KEY:
         return ''
-    # Use cached result if available
     if keyword in unsplash_cache:
         return unsplash_cache[keyword]
     try:
         query = urllib.parse.quote(keyword)
-        url = f"https://api.unsplash.com/search/photos?query={query}&per_page=5&orientation=landscape&client_id={UNSPLASH_KEY}"
+        url = f"https://api.unsplash.com/search/photos?query={query}&per_page=10&orientation=landscape&client_id={UNSPLASH_KEY}"
         req = urllib.request.Request(url)
         response = urllib.request.urlopen(req, timeout=5)
         data = json.loads(response.read())
         results = data.get('results', [])
         if results:
-            img_url = results[0]['urls']['regular']
+            pick = random.choice(results[:5])
+            img_url = pick['urls']['regular']
             unsplash_cache[keyword] = img_url
             return img_url
     except Exception:
         pass
     return ''
-
-def get_fallback_keyword(title, category):
-    # Pick a smart search keyword based on category
-    keywords = {
-        'markets': 'stock market trading',
-        'economy': 'economy finance',
-        'tech': 'technology business',
-        'general': 'business finance',
-    }
-    return keywords.get(category, 'finance')
 
 def fetch_feed(feed):
     try:
@@ -126,7 +127,6 @@ def fetch_feed(feed):
                 "published": entry.get("published", ""),
                 "published_dt": dt,
                 "image": image,
-                "has_image": bool(image),
             })
         return articles
     except Exception:
@@ -150,10 +150,9 @@ def refresh_cache():
     mixed = interleave(by_source)
     mixed.sort(key=lambda x: x["published_dt"], reverse=True)
 
-    # Fill missing images with Unsplash
     for article in mixed:
         if not article["image"]:
-            keyword = get_fallback_keyword(article["title"], article["category"])
+            keyword = extract_keyword(article["title"])
             article["image"] = get_unsplash_image(keyword)
 
     cache["articles"] = mixed
