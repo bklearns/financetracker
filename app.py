@@ -5,30 +5,24 @@ import re
 import os
 from datetime import datetime, timezone
 import email.utils
+import threading
 
 app = Flask(__name__)
 
 FEEDS = [
-    # General Finance
     {"source": "Reuters Business", "category": "general", "url": "https://feeds.reuters.com/reuters/businessNews"},
     {"source": "AP Business", "category": "general", "url": "https://feeds.apnews.com/rss/apf-business"},
     {"source": "NPR Business", "category": "general", "url": "https://feeds.npr.org/1006/rss.xml"},
     {"source": "Business Insider", "category": "general", "url": "https://feeds.businessinsider.com/custom/all"},
     {"source": "Fortune", "category": "general", "url": "https://fortune.com/feed/"},
-
-    # Markets
     {"source": "MarketWatch", "category": "markets", "url": "https://feeds.marketwatch.com/marketwatch/topstories/"},
     {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
     {"source": "Nasdaq News", "category": "markets", "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets"},
     {"source": "Investing.com", "category": "markets", "url": "https://www.investing.com/rss/news.rss"},
     {"source": "Barron's", "category": "markets", "url": "https://www.barrons.com/xml/rss/3_7552.xml"},
-
-    # Economy
     {"source": "CNBC Economy", "category": "economy", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"},
     {"source": "The Economist", "category": "economy", "url": "https://www.economist.com/finance-and-economics/rss.xml"},
     {"source": "South China Morning Post", "category": "economy", "url": "https://www.scmp.com/rss/91/feed"},
-
-    # Tech & Finance
     {"source": "CNBC Tech", "category": "tech", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"},
     {"source": "TechCrunch", "category": "tech", "url": "https://techcrunch.com/feed/"},
     {"source": "Ars Technica Business", "category": "tech", "url": "https://feeds.arstechnica.com/arstechnica/business"},
@@ -37,6 +31,9 @@ FEEDS = [
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
+
+# Cache to store articles so we don't re-fetch every page load
+cache = {"articles": [], "last_updated": None}
 
 def clean(text):
     return re.sub(r'<[^>]+>', '', text).strip()
@@ -74,7 +71,7 @@ def extract_image(entry):
 def fetch_feed(feed):
     try:
         req = urllib.request.Request(feed["url"], headers=HEADERS)
-        response = urllib.request.urlopen(req, timeout=8)
+        response = urllib.request.urlopen(req, timeout=6)
         content = response.read()
         parsed = feedparser.parse(content)
         articles = []
@@ -94,17 +91,45 @@ def fetch_feed(feed):
     except Exception:
         return []
 
+def refresh_cache():
+    articles = []
+    threads = []
+    results = {}
+
+    def fetch_and_store(feed, key):
+        results[key] = fetch_feed(feed)
+
+    for i, feed in enumerate(FEEDS):
+        t = threading.Thread(target=fetch_and_store, args=(feed, i))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join(timeout=10)
+
+    for i in range(len(FEEDS)):
+        articles.extend(results.get(i, []))
+
+    articles.sort(key=lambda x: x["published_dt"], reverse=True)
+    cache["articles"] = articles
+    cache["last_updated"] = datetime.now(timezone.utc)
+
+# Pre-load on startup in background
+threading.Thread(target=refresh_cache, daemon=True).start()
+
 @app.route("/")
 def index():
     category = request.args.get("category", "all")
     date_filter = request.args.get("date", "")
 
-    articles = []
-    for feed in FEEDS:
-        if category == "all" or feed["category"] == category:
-            articles.extend(fetch_feed(feed))
+    # If cache is empty, trigger a refresh
+    if not cache["articles"]:
+        refresh_cache()
 
-    articles.sort(key=lambda x: x["published_dt"], reverse=True)
+    articles = cache["articles"]
+
+    if category != "all":
+        articles = [a for a in articles if a["category"] == category]
 
     if date_filter:
         try:
