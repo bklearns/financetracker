@@ -9,24 +9,28 @@ import email.utils
 app = Flask(__name__)
 
 FEEDS = [
-    {"source": "BBC Business", "category": "general", "url": "https://feeds.bbci.co.uk/news/business/rss.xml"},
-    {"source": "The Guardian Business", "category": "general", "url": "https://www.theguardian.com/uk/business/rss"},
+    # General Finance
     {"source": "Reuters Business", "category": "general", "url": "https://feeds.reuters.com/reuters/businessNews"},
     {"source": "AP Business", "category": "general", "url": "https://feeds.apnews.com/rss/apf-business"},
     {"source": "NPR Business", "category": "general", "url": "https://feeds.npr.org/1006/rss.xml"},
     {"source": "Business Insider", "category": "general", "url": "https://feeds.businessinsider.com/custom/all"},
+    {"source": "Fortune", "category": "general", "url": "https://fortune.com/feed/"},
+
+    # Markets
     {"source": "MarketWatch", "category": "markets", "url": "https://feeds.marketwatch.com/marketwatch/topstories/"},
     {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
     {"source": "Nasdaq News", "category": "markets", "url": "https://www.nasdaq.com/feed/rssoutbound?category=Markets"},
     {"source": "Investing.com", "category": "markets", "url": "https://www.investing.com/rss/news.rss"},
     {"source": "Barron's", "category": "markets", "url": "https://www.barrons.com/xml/rss/3_7552.xml"},
+
+    # Economy
     {"source": "CNBC Economy", "category": "economy", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"},
     {"source": "The Economist", "category": "economy", "url": "https://www.economist.com/finance-and-economics/rss.xml"},
-    {"source": "Fortune", "category": "economy", "url": "https://fortune.com/feed/"},
     {"source": "South China Morning Post", "category": "economy", "url": "https://www.scmp.com/rss/91/feed"},
+
+    # Tech & Finance
     {"source": "CNBC Tech", "category": "tech", "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"},
     {"source": "TechCrunch", "category": "tech", "url": "https://techcrunch.com/feed/"},
-    {"source": "The Verge", "category": "tech", "url": "https://www.theverge.com/rss/index.xml"},
     {"source": "Ars Technica Business", "category": "tech", "url": "https://feeds.arstechnica.com/arstechnica/business"},
 ]
 
