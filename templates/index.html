@@ -29,7 +29,6 @@
         .header-left h1 span { color: #63b3ed; }
         .tagline { font-size: 12px; opacity: 0.5; font-style: italic; }
         .header-right { display: flex; align-items: center; gap: 12px; }
-
         .dark-toggle { background: none; border: 1px solid rgba(255,255,255,0.3); color: var(--header-text); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; transition: all 0.2s; }
         .dark-toggle:hover { background: rgba(255,255,255,0.1); }
 
@@ -52,8 +51,18 @@
         .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; }
         .card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
 
-        .card-image { width: 100%; height: 180px; object-fit: cover; background: var(--border); }
-        .card-image-placeholder { width: 100%; height: 180px; background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+        .card-image { width: 100%; height: 180px; object-fit: cover; background: var(--border); display: block; }
+
+        .card-image-placeholder {
+            width: 100%; height: 180px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: rgba(255,255,255,0.6);
+        }
+        .card-image-placeholder.markets { background: linear-gradient(135deg, #1a365d, #2b6cb0); }
+        .card-image-placeholder.economy { background: linear-gradient(135deg, #1a3a2a, #276749); }
+        .card-image-placeholder.tech { background: linear-gradient(135deg, #1a202c, #553c9a); }
+        .card-image-placeholder.general { background: linear-gradient(135deg, #2d3748, #4a5568); }
 
         .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; }
         .card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -124,9 +133,10 @@
                 {% endif %}
                 <div class="card">
                     {% if article.image %}
-                        <img class="card-image" src="{{ article.image }}" alt="" onerror="this.style.display='none'">
+                        <img class="card-image" src="{{ article.image }}" alt="" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="card-image-placeholder {{ article.category }}" style="display:none;">{{ article.source }}</div>
                     {% else %}
-                        <div class="card-image-placeholder">📈</div>
+                        <div class="card-image-placeholder {{ article.category }}">{{ article.source }}</div>
                     {% endif %}
                     <div class="card-body">
                         <div class="card-meta">
