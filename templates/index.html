@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance News</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Georgia, serif; background: #f4f4f4; color: #222; }
+        header { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 20px 40px; }
+        header h1 { font-size: 28px; letter-spacing: 2px; text-transform: uppercase; }
+        header p { color: #888; font-size: 13px; margin-top: 4px; }
+        nav { margin-top: 10px; }
+        nav a { margin-right: 20px; text-decoration: none; color: #333; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        nav a:hover { color: #c00; }
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .card { background: #fff; border: 1px solid #e0e0e0; padding: 20px; border-radius: 4px; }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .source-badge { display: inline-block; background: #222; color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 2px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .card h2 { font-size: 16px; line-height: 1.4; margin-bottom: 10px; }
+        .card h2 a { text-decoration: none; color: #111; }
+        .card h2 a:hover { color: #c00; }
+        .card p { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 12px; }
+        .card .meta { font-size: 11px; color: #aaa; }
+        .read-more { display: inline-block; margin-top: 10px; font-size: 12px; color: #c00; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; }
+        .read-more:hover { text-decoration: underline; }
+        footer { text-align: center; padding: 30px; color: #aaa; font-size: 12px; margin-top: 40px; border-top: 1px solid #e0e0e0; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Finance News</h1>
+        <p>Latest headlines from top financial sources</p>
+        <nav>
+            <a href="/">All News</a>
+        </nav>
+    </header>
+    <div class="container">
+        <div class="grid">
+            {% for article in articles %}
+            <div class="card">
+                <span class="source-badge">{{ article.source }}</span>
+                <h2><a href="{{ article.link }}" target="_blank">{{ article.title }}</a></h2>
+                <p>{{ article.summary }}</p>
+                <div class="meta">{{ article.published }}</div>
+                <a href="{{ article.link }}" target="_blank" class="read-more">Read more →</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <footer>
+        <p>Finance News Aggregator — Data sourced from public RSS feeds</p>
+    </footer>
+</body>
+</html>
