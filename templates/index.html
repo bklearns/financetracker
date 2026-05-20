@@ -1,57 +1,239 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance News</title>
+    <title>Finance News Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root[data-theme="light"] {
+            --bg: #f0f2f5;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1a202c;
+            --muted: #718096;
+            --accent: #2b6cb0;
+            --accent-hover: #2c5282;
+            --header-bg: #1a202c;
+            --header-text: #ffffff;
+            --badge-bg: #2b6cb0;
+            --badge-text: #ffffff;
+            --tag-bg: #ebf8ff;
+            --tag-text: #2b6cb0;
+        }
+        :root[data-theme="dark"] {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --border: #2d3748;
+            --text: #e2e8f0;
+            --muted: #718096;
+            --accent: #63b3ed;
+            --accent-hover: #90cdf4;
+            --header-bg: #0f1117;
+            --header-text: #e2e8f0;
+            --badge-bg: #2b6cb0;
+            --badge-text: #ffffff;
+            --tag-bg: #1a365d;
+            --tag-text: #63b3ed;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Georgia, serif; background: #f4f4f4; color: #222; }
-        header { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 20px 40px; }
-        header h1 { font-size: 28px; letter-spacing: 2px; text-transform: uppercase; }
-        header p { color: #888; font-size: 13px; margin-top: 4px; }
-        nav { margin-top: 10px; }
-        nav a { margin-right: 20px; text-decoration: none; color: #333; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-        nav a:hover { color: #c00; }
-        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-        .card { background: #fff; border: 1px solid #e0e0e0; padding: 20px; border-radius: 4px; }
-        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .source-badge { display: inline-block; background: #222; color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 2px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
-        .card h2 { font-size: 16px; line-height: 1.4; margin-bottom: 10px; }
-        .card h2 a { text-decoration: none; color: #111; }
-        .card h2 a:hover { color: #c00; }
-        .card p { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 12px; }
-        .card .meta { font-size: 11px; color: #aaa; }
-        .read-more { display: inline-block; margin-top: 10px; font-size: 12px; color: #c00; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; }
-        .read-more:hover { text-decoration: underline; }
-        footer { text-align: center; padding: 30px; color: #aaa; font-size: 12px; margin-top: 40px; border-top: 1px solid #e0e0e0; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
+
+        header {
+            background: var(--header-bg);
+            color: var(--header-text);
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+        .header-left p { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+
+        .dark-toggle {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: var(--header-text);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s;
+        }
+        .dark-toggle:hover { background: rgba(255,255,255,0.1); }
+
+        nav {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 40px;
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+        }
+        nav a {
+            display: inline-block;
+            padding: 14px 18px;
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        nav a:hover { color: var(--text); }
+        nav a.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .container { max-width: 1200px; margin: 32px auto; padding: 0 24px; }
+
+        .results-info { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+
+        .card-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: var(--border);
+        }
+        .card-image-placeholder {
+            width: 100%;
+            height: 180px;
+            background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; }
+
+        .card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .source-badge {
+            display: inline-block;
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .category-tag {
+            display: inline-block;
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            font-size: 10px;
+            font-weight: 500;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: capitalize;
+        }
+
+        .card h2 { font-size: 15px; font-weight: 600; line-height: 1.4; margin-bottom: 8px; }
+        .card h2 a { text-decoration: none; color: var(--text); }
+        .card h2 a:hover { color: var(--accent); }
+
+        .card p { font-size: 13px; color: var(--muted); line-height: 1.6; flex: 1; }
+
+        .card-footer { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .published { font-size: 11px; color: var(--muted); }
+        .read-more {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .read-more:hover { color: var(--accent-hover); }
+
+        .no-articles { text-align: center; padding: 60px; color: var(--muted); grid-column: 1/-1; }
+
+        footer { text-align: center; padding: 30px; color: var(--muted); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--border); }
+
+        @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } header { padding: 16px 20px; } nav { padding: 0 16px; } .container { padding: 0 16px; } }
     </style>
 </head>
 <body>
     <header>
-        <h1>Finance News</h1>
-        <p>Latest headlines from top financial sources</p>
-        <nav>
-            <a href="/">All News</a>
-        </nav>
+        <div class="header-left">
+            <h1>📈 FINANCE NEWS TRACKER</h1>
+            <p>Real-time headlines from top financial sources</p>
+        </div>
+        <button class="dark-toggle" onclick="toggleDark()">🌙 Dark Mode</button>
     </header>
+
+    <nav>
+        <a href="/?category=all" class="{{ 'active' if active_category == 'all' }}">🌐 All News</a>
+        <a href="/?category=general" class="{{ 'active' if active_category == 'general' }}">📰 General</a>
+        <a href="/?category=markets" class="{{ 'active' if active_category == 'markets' }}">📊 Markets</a>
+        <a href="/?category=economy" class="{{ 'active' if active_category == 'economy' }}">🏦 Economy</a>
+        <a href="/?category=tech" class="{{ 'active' if active_category == 'tech' }}">💻 Tech</a>
+    </nav>
+
     <div class="container">
+        <p class="results-info">{{ articles|length }} articles • {{ active_category|capitalize }} news</p>
         <div class="grid">
             {% for article in articles %}
             <div class="card">
-                <span class="source-badge">{{ article.source }}</span>
-                <h2><a href="{{ article.link }}" target="_blank">{{ article.title }}</a></h2>
-                <p>{{ article.summary }}</p>
-                <div class="meta">{{ article.published }}</div>
-                <a href="{{ article.link }}" target="_blank" class="read-more">Read more →</a>
+                {% if article.image %}
+                    <img class="card-image" src="{{ article.image }}" alt="" onerror="this.style.display='none'">
+                {% else %}
+                    <div class="card-image-placeholder">📈</div>
+                {% endif %}
+                <div class="card-body">
+                    <div class="card-meta">
+                        <span class="source-badge">{{ article.source }}</span>
+                        <span class="category-tag">{{ article.category }}</span>
+                    </div>
+                    <h2><a href="{{ article.link }}" target="_blank">{{ article.title }}</a></h2>
+                    <p>{{ article.summary }}</p>
+                    <div class="card-footer">
+                        <span class="published">{{ article.published }}</span>
+                        <a href="{{ article.link }}" target="_blank" class="read-more">Read more →</a>
+                    </div>
+                </div>
             </div>
             {% endfor %}
+            {% if articles|length == 0 %}
+            <div class="no-articles">
+                <p>⏳ No articles loaded. Try refreshing or check back shortly.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
-    <footer>
-        <p>Finance News Aggregator — Data sourced from public RSS feeds</p>
-    </footer>
+
+    <footer>Finance News Tracker — Data sourced from public RSS feeds. Click any article to read on the original site.</footer>
+
+    <script>
+        function toggleDark() {
+            const html = document.documentElement;
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            document.querySelector('.dark-toggle').textContent = isDark ? '🌙 Dark Mode' : '☀️ Light Mode';
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        }
+        // Load saved theme
+        const saved = localStorage.getItem('theme');
+        if (saved) {
+            document.documentElement.setAttribute('data-theme', saved);
+            if (saved === 'dark') document.querySelector('.dark-toggle').textContent = '☀️ Light Mode';
+        }
+    </script>
 </body>
 </html>
