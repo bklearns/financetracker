@@ -30,6 +30,14 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# Curated finance-relevant Unsplash search terms that reliably return good images
+CATEGORY_KEYWORDS = {
+    "markets": ["stock market chart", "wall street trading", "stock exchange", "financial graph", "bull market", "nasdaq trading floor"],
+    "economy": ["federal reserve bank", "global economy", "inflation finance", "interest rates", "central bank", "gdp growth"],
+    "tech": ["artificial intelligence technology", "silicon valley tech", "semiconductor chip", "data center servers", "fintech startup", "cybersecurity"],
+    "general": ["business meeting boardroom", "corporate finance", "investment banking", "financial district", "wall street", "money currency"],
+}
+
 cache = {"articles": [], "last_updated": None}
 unsplash_cache = {}
 
@@ -76,22 +84,14 @@ def extract_image(entry):
                 return url
     return ''
 
-def extract_keyword(title):
-    stopwords = {'the','a','an','in','on','at','to','for','of','and','or','but',
-                 'is','are','was','were','be','been','being','have','has','had',
-                 'do','does','did','will','would','could','should','may','might',
-                 'this','that','these','those','it','its','as','by','from','with',
-                 'how','what','why','when','who','which','up','out','about','into',
-                 'just','more','than','over','after','says','said','according','new'}
-    words = re.findall(r'\b[a-zA-Z]{4,}\b', title)
-    keywords = [w for w in words if w.lower() not in stopwords]
-    return ' '.join(keywords[:3]) if keywords else 'finance business'
-
-def get_unsplash_image(keyword):
+def get_unsplash_image(category):
     if not UNSPLASH_KEY:
         return ''
+    keywords = CATEGORY_KEYWORDS.get(category, CATEGORY_KEYWORDS["general"])
+    keyword = random.choice(keywords)
     if keyword in unsplash_cache:
-        return unsplash_cache[keyword]
+        # Return a random one from cached results to add variety
+        return random.choice(unsplash_cache[keyword])
     try:
         query = urllib.parse.quote(keyword)
         url = f"https://api.unsplash.com/search/photos?query={query}&per_page=10&orientation=landscape&client_id={UNSPLASH_KEY}"
@@ -100,10 +100,9 @@ def get_unsplash_image(keyword):
         data = json.loads(response.read())
         results = data.get('results', [])
         if results:
-            pick = random.choice(results[:5])
-            img_url = pick['urls']['regular']
-            unsplash_cache[keyword] = img_url
-            return img_url
+            urls = [r['urls']['regular'] for r in results[:8]]
+            unsplash_cache[keyword] = urls
+            return random.choice(urls)
     except Exception:
         pass
     return ''
@@ -152,8 +151,7 @@ def refresh_cache():
 
     for article in mixed:
         if not article["image"]:
-            keyword = extract_keyword(article["title"])
-            article["image"] = get_unsplash_image(keyword)
+            article["image"] = get_unsplash_image(article["category"])
 
     cache["articles"] = mixed
     cache["last_updated"] = datetime.now(timezone.utc)
