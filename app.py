@@ -1,13 +1,16 @@
 from flask import Flask, render_template, request
 import feedparser
 import urllib.request
+import urllib.parse
+import json
 import re
 import os
 from datetime import datetime, timezone
 import email.utils
-import random
 
 app = Flask(__name__)
+
+UNSPLASH_KEY = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
 FEEDS = [
     {"source": "Yahoo Finance", "category": "markets", "url": "https://finance.yahoo.com/news/rssindex"},
@@ -26,7 +29,9 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# Cache for articles and Unsplash images
 cache = {"articles": [], "last_updated": None}
+unsplash_cache = {}
 
 def clean(text):
     return re.sub(r'<[^>]+>', '', text).strip()
@@ -45,23 +50,19 @@ def parse_date(entry):
     return datetime.min.replace(tzinfo=timezone.utc)
 
 def extract_image(entry):
-    # Try media_thumbnail first
     if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
         url = entry.media_thumbnail[0].get('url', '')
         if url:
             return url
-    # Try media_content
     if hasattr(entry, 'media_content') and entry.media_content:
         for m in entry.media_content:
             url = m.get('url', '')
             if url and any(ext in url for ext in ['.jpg', '.jpeg', '.png', '.webp']):
                 return url
-    # Try enclosures
     if hasattr(entry, 'enclosures') and entry.enclosures:
         for enc in entry.enclosures:
             if 'image' in enc.get('type', ''):
                 return enc.get('href', '')
-    # Try parsing img tag from content or summary
     for field in ['content', 'summary']:
         text = ''
         if field == 'content' and hasattr(entry, 'content') and entry.content:
@@ -75,6 +76,37 @@ def extract_image(entry):
                 return url
     return ''
 
+def get_unsplash_image(keyword):
+    if not UNSPLASH_KEY:
+        return ''
+    # Use cached result if available
+    if keyword in unsplash_cache:
+        return unsplash_cache[keyword]
+    try:
+        query = urllib.parse.quote(keyword)
+        url = f"https://api.unsplash.com/search/photos?query={query}&per_page=5&orientation=landscape&client_id={UNSPLASH_KEY}"
+        req = urllib.request.Request(url)
+        response = urllib.request.urlopen(req, timeout=5)
+        data = json.loads(response.read())
+        results = data.get('results', [])
+        if results:
+            img_url = results[0]['urls']['regular']
+            unsplash_cache[keyword] = img_url
+            return img_url
+    except Exception:
+        pass
+    return ''
+
+def get_fallback_keyword(title, category):
+    # Pick a smart search keyword based on category
+    keywords = {
+        'markets': 'stock market trading',
+        'economy': 'economy finance',
+        'tech': 'technology business',
+        'general': 'business finance',
+    }
+    return keywords.get(category, 'finance')
+
 def fetch_feed(feed):
     try:
         req = urllib.request.Request(feed["url"], headers=HEADERS)
@@ -84,6 +116,7 @@ def fetch_feed(feed):
         articles = []
         for entry in parsed.entries[:8]:
             dt = parse_date(entry)
+            image = extract_image(entry)
             articles.append({
                 "source": feed["source"],
                 "category": feed["category"],
@@ -92,14 +125,14 @@ def fetch_feed(feed):
                 "summary": clean(entry.get("summary", ""))[:180],
                 "published": entry.get("published", ""),
                 "published_dt": dt,
-                "image": extract_image(entry),
+                "image": image,
+                "has_image": bool(image),
             })
         return articles
     except Exception:
         return []
 
 def interleave(all_articles_by_source):
-    """Mix articles from different sources so no one source dominates."""
     result = []
     while any(all_articles_by_source):
         for source_list in all_articles_by_source:
@@ -114,9 +147,15 @@ def refresh_cache():
         if articles:
             by_source.append(articles)
 
-    # Interleave sources, then sort by date within each day
     mixed = interleave(by_source)
     mixed.sort(key=lambda x: x["published_dt"], reverse=True)
+
+    # Fill missing images with Unsplash
+    for article in mixed:
+        if not article["image"]:
+            keyword = get_fallback_keyword(article["title"], article["category"])
+            article["image"] = get_unsplash_image(keyword)
+
     cache["articles"] = mixed
     cache["last_updated"] = datetime.now(timezone.utc)
 
